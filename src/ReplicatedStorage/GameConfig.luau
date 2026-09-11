@@ -74,6 +74,12 @@ GameConfig.BaseboardHeight = 5
 
 GameConfig.DoorFrames = true   -- stipiti attorno ai vani porta
 
+-- Qualita' delle pareti. Sono microscopici ma risolvono i difetti che si
+-- vedono di piu': le righe di luce sulle giunture e gli spigoli sporchi.
+GameConfig.SeamOverlap = 0.06  -- di quanto due tratti di muro si sovrappongono invece di combaciare esatti. A 0 si vedono righe di luce lungo ogni congiunzione
+GameConfig.CornerPosts = true  -- pilastrini dove i muri si incontrano: coprono lo spigolo e sono architettura vera
+GameConfig.PictureRail = true  -- la modanatura orizzontale a meta' parete, come nei corridoi degli edifici pubblici
+
 GameConfig.WindowChance = 0.5  -- probabilita' che un tratto di muro esterno sia una finestra
 GameConfig.BrokenGlass  = 0.4  -- di quelle, quante hanno il vetro rotto (aperte)
 GameConfig.MoonLight    = 1.1  -- quanta luce lunare entra da finestre e buchi nel soffitto

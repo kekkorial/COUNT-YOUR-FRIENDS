@@ -61,6 +61,16 @@ local function part(parent, props)
 	for k, v in pairs(props) do
 		p[k] = v
 	end
+	-- I pezzi sottili non proiettano ombra. Sono centinaia — modanature,
+	-- fogli, schegge, fili — l'ombra di una lamina di mezzo centimetro non si
+	-- vede, e su geometria che si compenetra le ombre dinamiche producono
+	-- artefatti: proprio quelle sbavature che sembrano difetti grafici.
+	if props.CastShadow == nil then
+		local s = p.Size
+		if math.min(s.X, s.Y, s.Z) < 0.6 then
+			p.CastShadow = false
+		end
+	end
 	p.Parent = parent
 	return p
 end
@@ -82,13 +92,21 @@ function MapGenerator.build(parent)
 
 	-- Sposta un colore di un soffio, a caso. Ripetuto su ogni pezzo, e' quello
 	-- che toglie l'aria di "tutto uguale, tutto finto".
-	local function jc(color)
+	local function tinta(color, a)
 		local h, s, v = color:ToHSV()
-		local a = cfg.ColorJitter
 		v = math.clamp(v + (rng:NextNumber() - 0.5) * a, 0, 1)
 		s = math.clamp(s + (rng:NextNumber() - 0.5) * a * 0.5, 0, 1)
 		return Color3.fromHSV(h, s, v)
 	end
+
+	-- Per gli oggetti sparsi: variare parecchio toglie l'aria di plastica.
+	local function jc(color) return tinta(color, cfg.ColorJitter) end
+
+	-- Per le SUPERFICI CONTINUE (muri, pannelli, soletta, armadietti) la stessa
+	-- variazione e' un difetto invece che un pregio: una parete lunga e' fatta
+	-- di molti tratti, e se ognuno ha una tonalita' diversa si vede a chiazze,
+	-- come una texture rotta. Qui la variazione dev'essere appena percettibile.
+	local function jw(color) return tinta(color, cfg.ColorJitter * 0.22) end
 
 	local W, D = cfg.GridWidth, cfg.GridDepth
 	local T, H = cfg.WallThickness, cfg.WallHeight
@@ -96,6 +114,7 @@ function MapGenerator.build(parent)
 	-- giocatore. I muri pero' devono salire piu' su, fino alla soletta vera:
 	-- altrimenti, dove i pannelli sono caduti, si vedrebbe da una stanza
 	-- all'altra passando sopra i muri.
+	local EPS = cfg.SeamOverlap
 	local PLEN = cfg.PlenumHeight
 	local HW = H + PLEN
 
@@ -226,21 +245,45 @@ function MapGenerator.build(parent)
 
 	-- Un tratto di muro: il muro vero piu', se tocca terra, la zoccolatura.
 	local function segment(axis, fixed, from, to, height, yBottom)
-		local len = to - from
-		if len < 0.05 then return end
-		local mid = (from + to) / 2
+		if to - from < 0.05 then return end
+
+		-- LA CORREZIONE PIU' IMPORTANTE DI QUESTO FILE.
+		-- Due tratti di muro che combaciano esatti lasciano passare una riga di
+		-- luce lungo la congiunzione: il motore non chiude perfettamente il
+		-- contatto fra due facce coincidenti, e quelle righe chiare lungo ogni
+		-- giunzione sono cio' che si vede come "parete glitchata". Facendoli
+		-- sovrapporre di sei centesimi il problema sparisce, e sei centesimi
+		-- non si vedono.
+		local a, b = from - EPS, to + EPS
+		local len = b - a
+		local mid = (a + b) / 2
 
 		if axis == "X" then
 			part(walls, {
 				Size = Vector3.new(len, height, T),
 				CFrame = CFrame.new(mid, yBottom + height / 2, fixed),
-				Color = jc(C_WALL),
+				Color = jw(C_WALL),
 			})
 		else
 			part(walls, {
 				Size = Vector3.new(T, height, len),
 				CFrame = CFrame.new(fixed, yBottom + height / 2, mid),
-				Color = jc(C_WALL),
+				Color = jw(C_WALL),
+			})
+		end
+
+		-- La modanatura orizzontale a meta' parete. Nei corridoi degli edifici
+		-- pubblici c'e' quasi sempre. Serve a due cose: rompe la parete piatta,
+		-- e da' una linea orizzontale che segue la prospettiva — che e' proprio
+		-- cio' che rende leggibile un corridoio lungo.
+		if cfg.PictureRail and yBottom < 0.1 and height > 12 and len > 4 then
+			local ry = cfg.BaseboardHeight + 4.5
+			part(walls, {
+				Size = (axis == "X") and Vector3.new(len, 0.5, T + 0.5)
+					or Vector3.new(T + 0.5, 0.5, len),
+				CFrame = (axis == "X") and CFrame.new(mid, ry, fixed)
+					or CFrame.new(fixed, ry, mid),
+				Color = jw(C_TRIM),
 			})
 		end
 
@@ -276,13 +319,13 @@ function MapGenerator.build(parent)
 				part(walls, {
 					Size = Vector3.new(len, bh, T + 0.35),
 					CFrame = CFrame.new(mid, bh / 2, fixed),
-					Color = jc(C_TRIM),
+					Color = jw(C_TRIM),
 				})
 			else
 				part(walls, {
 					Size = Vector3.new(T + 0.35, bh, len),
 					CFrame = CFrame.new(fixed, bh / 2, mid),
-					Color = jc(C_TRIM),
+					Color = jw(C_TRIM),
 				})
 			end
 		end
@@ -303,7 +346,7 @@ function MapGenerator.build(parent)
 				or Vector3.new(fixed, py, mid + pOff)
 			part(walls, {
 				Size = size, CFrame = CFrame.new(pos),
-				Color = jc(C_FRAME), Material = Enum.Material.WoodPlanks,
+				Color = jw(C_FRAME), Material = Enum.Material.WoodPlanks,
 			})
 		end
 
@@ -313,6 +356,38 @@ function MapGenerator.build(parent)
 		pezzo(width + t, t, T + 0.5, yBottom + height, 0)
 		if yBottom > 0.1 then
 			pezzo(width + t, t, T + 1.2, yBottom, 0)   -- il davanzale sporge di piu'
+		end
+	end
+
+	-- PILASTRINI AGLI INCROCI DEI MURI.
+	-- Fanno due lavori insieme. Coprono lo spigolo dove due tratti di muro si
+	-- incontrano, che e' il punto dove ogni difetto si vede di piu'. E sono
+	-- architettura vera: i pilastri che nei corridoi lunghi scandiscono la
+	-- parete e danno il ritmo alla prospettiva.
+	if cfg.CornerPosts then
+		local nodi = {}
+		local function nodo(px, pz)
+			local k = string.format("%.2f:%.2f", px, pz)
+			nodi[k] = (nodi[k] or 0) + 1
+		end
+		for _, e in ipairs(edges) do
+			if e.axis == "X" then
+				nodo(e.from, e.fixed); nodo(e.to, e.fixed)
+			else
+				nodo(e.fixed, e.from); nodo(e.fixed, e.to)
+			end
+		end
+		for chiave, quanti in pairs(nodi) do
+			-- uno solo vuol dire un muro che finisce nel nulla: li' non c'e'
+			-- nessuno spigolo da coprire
+			if quanti >= 2 then
+				local sx2, sz2 = string.match(chiave, "([^:]+):([^:]+)")
+				part(walls, {
+					Size = Vector3.new(T + 0.7, HW, T + 0.7),
+					CFrame = CFrame.new(tonumber(sx2), HW / 2, tonumber(sz2)),
+					Color = jw(C_WALL),
+				})
+			end
 		end
 	end
 
@@ -347,7 +422,7 @@ function MapGenerator.build(parent)
 				part(walls, {
 					Size = Vector3.new(dw, dh, 0.4),
 					CFrame = base * CFrame.Angles(0, yaw + ang, 0) * CFrame.new(-lato * dw / 2, 0, 0),
-					Color = jc(C_FRAME), Material = Enum.Material.WoodPlanks,
+					Color = jw(C_FRAME), Material = Enum.Material.WoodPlanks,
 					CanCollide = false,
 				})
 			end
@@ -375,7 +450,7 @@ function MapGenerator.build(parent)
 				local function traverso(size)
 					part(walls, {
 						Size = size, CFrame = CFrame.new(centro),
-						Color = jc(C_FRAME), Material = Enum.Material.WoodPlanks,
+						Color = jw(C_FRAME), Material = Enum.Material.WoodPlanks,
 						CanCollide = false,
 					})
 				end
@@ -518,7 +593,7 @@ function MapGenerator.build(parent)
 				part(ceilings, {
 					Size = Vector3.new(x1 - x0, 1, z1 - z0),
 					CFrame = CFrame.new(cx, HW + 0.5, cz),
-					Color = jc(C_DECK),
+					Color = jw(C_DECK),
 				})
 			end
 
@@ -553,7 +628,7 @@ function MapGenerator.build(parent)
 						part(ceilings, {
 							Size = Vector3.new(b - a, 0.4, td),
 							CFrame = CFrame.new((a + b) / 2, H, z0 + (j - 0.5) * td),
-							Color = jc(C_PANEL), Material = Enum.Material.Sandstone,
+							Color = jw(C_PANEL), Material = Enum.Material.Sandstone,
 						})
 						inizio = nil
 					end
@@ -613,7 +688,7 @@ function MapGenerator.build(parent)
 									* CFrame.Angles(
 										math.rad(rng:NextInteger(28, 62)),
 										rng:NextNumber() * 6.28, 0),
-								Color = jc(C_PANEL), Material = Enum.Material.Sandstone,
+								Color = jw(C_PANEL), Material = Enum.Material.Sandstone,
 								CanCollide = false,
 							})
 						end
@@ -729,7 +804,7 @@ function MapGenerator.build(parent)
 							CFrame = CFrame.new(
 								along and lungoPos or muro, altoPos,
 								along and muro or lungoPos),
-							Color = col or jc(C_LOCKER),
+							Color = col or jw(C_LOCKER),
 							Material = mat or Enum.Material.DiamondPlate,
 						})
 					end
@@ -761,7 +836,7 @@ function MapGenerator.build(parent)
 							CFrame = CFrame.new(
 								along and cardine or fuori, 0.8 + HEIGHT / 2,
 								along and fuori or cardine),
-							Color = jc(C_LOCKER), Material = Enum.Material.CorrodedMetal,
+							Color = jw(C_LOCKER), Material = Enum.Material.CorrodedMetal,
 							CanCollide = false,
 						})
 					end
