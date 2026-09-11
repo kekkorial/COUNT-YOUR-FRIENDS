@@ -204,8 +204,31 @@ function MapGenerator.build(parent)
 		end
 	end
 
-	for _, list in pairs(candidates) do
-		list[rng:NextInteger(1, #list)].mode = "door"
+	-- Ci teniamo il confine scelto: serve piu' avanti per NON appendere la
+	-- lavagna sul muro dell'ingresso.
+	local portaDi = {}
+	for id, list in pairs(candidates) do
+		local scelto = list[rng:NextInteger(1, #list)]
+		scelto.mode = "door"
+		portaDi[id] = scelto
+	end
+
+	-- Ingombro di ogni aula in caselle. Un'aula puo' essere nata dalla fusione
+	-- di due caselle, e va arredata come un ambiente solo.
+	local ingombro = {}
+	for y = 1, D do
+		for x = 1, W do
+			local id = space[x][y]
+			if id and id > 0 then
+				local bb = ingombro[id]
+				if not bb then
+					ingombro[id] = { x0 = x, x1 = x, y0 = y, y1 = y }
+				else
+					bb.x0 = math.min(bb.x0, x); bb.x1 = math.max(bb.x1, x)
+					bb.y0 = math.min(bb.y0, y); bb.y1 = math.max(bb.y1, y)
+				end
+			end
+		end
 	end
 
 	-- --- 5. muri esterni, con l'ingresso e le finestre ---
@@ -765,7 +788,6 @@ function MapGenerator.build(parent)
 	props.Name = "Arredamento"
 	props.Parent = parent
 
-	local seen = {}
 	for y = 1, D do
 		for x = 1, W do
 			local id = space[x][y]
@@ -868,71 +890,6 @@ function MapGenerator.build(parent)
 					})
 				end
 
-			elseif not seen[id] then
-				-- l'aula si arreda una volta sola, alla prima casella che incontriamo
-				seen[id] = true
-				for _ = 1, cfg.DesksPerRoom do
-					local px = cx + (rng:NextNumber() - 0.5) * (sx - 8)
-					local pz = cz + (rng:NextNumber() - 0.5) * (sz - 8)
-					local yaw = rng:NextNumber() * 6.28
-
-					if rng:NextNumber() < cfg.OverturnedDesks then
-						-- banco rovesciato su un fianco
-						part(props, {
-							Size = Vector3.new(4, 0.4, 2.5),
-							CFrame = CFrame.new(px, 1.3, pz)
-								* CFrame.Angles(0, yaw, math.rad(88)),
-							Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
-						})
-					else
-						local desk = part(props, {
-							Size = Vector3.new(4, 0.4, 2.5),
-							CFrame = CFrame.new(px, 3, pz) * CFrame.Angles(0, yaw, 0),
-							Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
-						})
-						part(props, {
-							Size = Vector3.new(0.6, 3, 0.6),
-							CFrame = desk.CFrame * CFrame.new(0, -1.5, 0),
-							Color = jc(C_METAL),
-						})
-						if rng:NextNumber() < cfg.ChairChance then
-							local seat = part(props, {
-								Size = Vector3.new(1.8, 0.3, 1.8),
-								CFrame = desk.CFrame * CFrame.new(0, -1, 2.6),
-								Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
-							})
-							part(props, {
-								Size = Vector3.new(1.8, 1.8, 0.3),
-								CFrame = seat.CFrame * CFrame.new(0, 1, 0.75),
-								Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
-							})
-						end
-					end
-				end
-
-				-- lavagna, col gesso ancora sopra
-				local board = part(props, {
-					Size = Vector3.new(sx * 0.5, 5, 0.4),
-					CFrame = CFrame.new(cx, 7, zEdge[y] + 0.9),
-					Color = C_BOARD, Material = Enum.Material.Slate,
-					CanCollide = false,   -- se il muro dietro ha una porta, non deve tapparla
-				})
-
-				local gui = Instance.new("SurfaceGui")
-				gui.Face = Enum.NormalId.Back      -- la faccia rivolta verso l'aula
-				gui.CanvasSize = Vector2.new(600, 200)
-				gui.LightInfluence = 1             -- il gesso si vede solo se lo illumini
-				gui.Parent = board
-
-				local testo = Instance.new("TextLabel")
-				testo.Size = UDim2.new(1, 0, 1, 0)
-				testo.BackgroundTransparency = 1
-				testo.Font = Enum.Font.PermanentMarker
-				testo.TextScaled = true
-				testo.TextColor3 = Color3.fromRGB(228, 226, 214)
-				testo.TextTransparency = 0.25
-				testo.Text = LAVAGNA[rng:NextInteger(1, #LAVAGNA)]
-				testo.Parent = gui
 			end
 
 			-- Dove cade la roba per terra. Nei posti abbandonati i detriti non
@@ -967,6 +924,212 @@ function MapGenerator.build(parent)
 						* CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
 					Color = jc(C_CEIL), Material = Enum.Material.Rock,
 				})
+			end
+		end
+	end
+
+	-- =========================================================
+	--  8b. LE AULE
+	--
+	--  Un'aula vera non e' un mucchio di banchi girati a caso: sono FILE
+	--  ORDINATE rivolte verso la lavagna. E' l'ordine a dire "qui si faceva
+	--  lezione", ed e' il disordine che ci mettiamo sopra — qualche banco
+	--  rovesciato, una sedia buttata via — a dire "poi non piu'".
+	--  Coi banchi sparsi a caso non si legge ne' l'una ne' l'altra cosa.
+	-- =========================================================
+
+	local function banco(px, pz, yaw, rovesciato)
+		local c
+		if rovesciato then
+			c = CFrame.new(px, 0.3, pz) * CFrame.Angles(0, yaw, 0)
+				* CFrame.Angles(math.rad(rng:NextInteger(78, 98)), 0, 0)
+		else
+			c = CFrame.new(px, 0, pz) * CFrame.Angles(0, yaw, 0)
+		end
+		part(props, {   -- il piano
+			Size = Vector3.new(4, 0.35, 2.4),
+			CFrame = c * CFrame.new(0, 3.2, 0),
+			Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+		})
+		part(props, {   -- il ripiano sotto, dove finivano i libri
+			Size = Vector3.new(3.3, 0.15, 1.7),
+			CFrame = c * CFrame.new(0, 1.9, 0.15),
+			Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+		})
+		for _, s in ipairs({ -1, 1 }) do   -- le due fiancate tubolari
+			part(props, {
+				Size = Vector3.new(0.25, 3.2, 2.2),
+				CFrame = c * CFrame.new(s * 1.8, 1.6, 0),
+				Color = jc(C_METAL), Material = Enum.Material.Metal,
+			})
+		end
+	end
+
+	local function sedia(px, pz, yaw, rovesciata)
+		local c
+		if rovesciata then
+			c = CFrame.new(px, 0.4, pz) * CFrame.Angles(0, yaw, 0)
+				* CFrame.Angles(0, 0, math.rad(rng:NextInteger(76, 104)))
+		else
+			c = CFrame.new(px, 0, pz) * CFrame.Angles(0, yaw, 0)
+		end
+		part(props, {   -- la seduta
+			Size = Vector3.new(1.9, 0.28, 1.8),
+			CFrame = c * CFrame.new(0, 2.1, 0),
+			Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+		})
+		part(props, {   -- lo schienale, dalla parte opposta alla lavagna
+			Size = Vector3.new(1.9, 1.8, 0.28),
+			CFrame = c * CFrame.new(0, 3.1, 0.82),
+			Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+		})
+		for _, s in ipairs({ -1, 1 }) do
+			part(props, {
+				Size = Vector3.new(0.22, 2.1, 1.6),
+				CFrame = c * CFrame.new(s * 0.88, 1.05, 0),
+				Color = jc(C_METAL), Material = Enum.Material.Metal,
+			})
+		end
+	end
+
+	for id, bb in pairs(ingombro) do
+		local m = T / 2 + 1.5
+		local rx0, rx1 = xEdge[bb.x0] + m, xEdge[bb.x1 + 1] - m
+		local rz0, rz1 = zEdge[bb.y0] + m, zEdge[bb.y1 + 1] - m
+		local porta = portaDi[id]
+
+		-- I quattro muri dell'aula. "dx/dz" punta dal muro verso l'interno,
+		-- "yaw" e' come vanno girati i banchi per guardare quel muro, "faccia"
+		-- e' il lato della lavagna su cui si scrive.
+		local lati = {
+			{ ax = "X", fixed = zEdge[bb.y0],     dx = 0,  dz = 1,  yaw = 0,            faccia = Enum.NormalId.Back },
+			{ ax = "X", fixed = zEdge[bb.y1 + 1], dx = 0,  dz = -1, yaw = math.pi,      faccia = Enum.NormalId.Front },
+			{ ax = "Z", fixed = xEdge[bb.x0],     dx = 1,  dz = 0,  yaw = math.pi / 2,  faccia = Enum.NormalId.Right },
+			{ ax = "Z", fixed = xEdge[bb.x1 + 1], dx = -1, dz = 0,  yaw = -math.pi / 2, faccia = Enum.NormalId.Left },
+		}
+
+		-- SCELTA DEL MURO PER LA LAVAGNA.
+		-- Mai quello della porta: era il difetto da correggere, una lavagna
+		-- appesa sopra l'ingresso. A parita', meglio un muro interno che uno
+		-- esterno — li' ci sono le finestre — e meglio ancora quello che ti
+		-- trovi davanti entrando.
+		local scelto, meglio = nil, -1
+		for _, L in ipairs(lati) do
+			local eLaPorta = porta and porta.axis == L.ax
+				and math.abs(porta.fixed - L.fixed) < 0.01
+			if not eLaPorta then
+				local esterno = (L.ax == "X" and (L.fixed < 0.01 or L.fixed > totalZ - 0.01))
+					or (L.ax == "Z" and (L.fixed < 0.01 or L.fixed > totalX - 0.01))
+				local p = (esterno and 1 or 3) + rng:NextNumber()
+				if porta and porta.axis == L.ax then p += 2 end   -- il muro di fronte alla porta
+				if p > meglio then scelto, meglio = L, p end
+			end
+		end
+
+		if scelto then
+			local L = scelto
+			local w0 = (L.ax == "X") and rx0 or rz0
+			local w1 = (L.ax == "X") and rx1 or rz1
+			local d0 = (L.ax == "X") and ((L.dz > 0) and rz0 or rz1)
+				or ((L.dx > 0) and rx0 or rx1)
+			local d1 = (L.ax == "X") and ((L.dz > 0) and rz1 or rz0)
+				or ((L.dx > 0) and rx1 or rx0)
+			local verso = (d1 > d0) and 1 or -1
+			local prof, larg = math.abs(d1 - d0), w1 - w0
+			local cw = (w0 + w1) / 2
+
+			-- --- LA LAVAGNA ---
+			local bw = math.min(larg * 0.62, 17)
+			local bx = (L.ax == "X") and cw or (L.fixed + L.dx * (T / 2 + 0.35))
+			local bz = (L.ax == "X") and (L.fixed + L.dz * (T / 2 + 0.35)) or cw
+
+			part(props, {   -- la cornice, appena dietro e un po' piu' grande
+				Size = (L.ax == "X") and Vector3.new(bw + 1, 5.9, 0.3)
+					or Vector3.new(0.3, 5.9, bw + 1),
+				CFrame = CFrame.new(bx - L.dx * 0.25, 7, bz - L.dz * 0.25),
+				Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+				CanCollide = false,
+			})
+			local board = part(props, {
+				Size = (L.ax == "X") and Vector3.new(bw, 5, 0.4) or Vector3.new(0.4, 5, bw),
+				CFrame = CFrame.new(bx, 7, bz),
+				Color = C_BOARD, Material = Enum.Material.Slate,
+				CanCollide = false,
+			})
+			part(props, {   -- il portagessi
+				Size = (L.ax == "X") and Vector3.new(bw, 0.3, 1) or Vector3.new(1, 0.3, bw),
+				CFrame = CFrame.new(bx + L.dx * 0.35, 4.3, bz + L.dz * 0.35),
+				Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+				CanCollide = false,
+			})
+
+			local gui = Instance.new("SurfaceGui")
+			gui.Face = L.faccia
+			gui.CanvasSize = Vector2.new(700, 220)
+			gui.LightInfluence = 1     -- il gesso si vede solo se lo illumini
+			gui.Parent = board
+			local testo = Instance.new("TextLabel")
+			testo.Size = UDim2.new(1, 0, 1, 0)
+			testo.BackgroundTransparency = 1
+			testo.Font = Enum.Font.PermanentMarker
+			testo.TextScaled = true
+			testo.TextColor3 = Color3.fromRGB(228, 226, 214)
+			testo.TextTransparency = 0.25
+			testo.Text = LAVAGNA[rng:NextInteger(1, #LAVAGNA)]
+			testo.Parent = gui
+
+			-- --- LA CATTEDRA, rivolta verso la classe ---
+			local catD = d0 + verso * 5
+			local catX = (L.ax == "X") and (cw + rng:NextInteger(-3, 3)) or catD
+			local catZ = (L.ax == "X") and catD or (cw + rng:NextInteger(-3, 3))
+			local cat = CFrame.new(catX, 0, catZ) * CFrame.Angles(0, L.yaw + math.pi, 0)
+			part(props, {
+				Size = Vector3.new(5.6, 0.4, 2.8),
+				CFrame = cat * CFrame.new(0, 3.4, 0),
+				Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+			})
+			for _, s in ipairs({ -1, 1 }) do
+				part(props, {
+					Size = Vector3.new(0.5, 3.4, 2.6),
+					CFrame = cat * CFrame.new(s * 2.5, 1.7, 0),
+					Color = jc(C_WOOD), Material = Enum.Material.WoodPlanks,
+				})
+			end
+
+			-- --- I BANCHI, in file rivolte alla lavagna ---
+			-- Un'aula piu' grande regge piu' banchi: il tetto scala con le
+			-- caselle che occupa.
+			local capienza = math.min(
+				cfg.DesksPerRoom * (bb.x1 - bb.x0 + 1) * (bb.y1 - bb.y0 + 1), 12)
+			local messi = 0
+			local d = d0 + verso * 9.5   -- lo spazio davanti resta alla cattedra
+
+			while math.abs(d - d0) < prof - 3 and messi < capienza do
+				local c = w0 + 3.2
+				while c < w1 - 3.2 and messi < capienza do
+					-- Il disordine e' piccolo apposta: se fosse grande
+					-- tornerebbe a sembrare un mucchio a caso.
+					local px = ((L.ax == "X") and c or d) + (rng:NextNumber() - 0.5) * 1.4
+					local pz = ((L.ax == "X") and d or c) + (rng:NextNumber() - 0.5) * 1.4
+					local yaw = L.yaw + math.rad((rng:NextNumber() - 0.5) * 16)
+					local giu = rng:NextNumber() < cfg.OverturnedDesks
+
+					banco(px, pz, yaw, giu)
+					if not giu and rng:NextNumber() < cfg.ChairChance then
+						sedia(px + L.dx * 3.2, pz + L.dz * 3.2, yaw, false)
+					elseif rng:NextNumber() < 0.45 then
+						-- Sedia buttata via. La riportiamo dentro i muri
+						-- dell'aula: senza, ogni tanto finiva dentro una parete.
+						sedia(
+							math.clamp(px + (rng:NextNumber() - 0.5) * 8, rx0 + 1.5, rx1 - 1.5),
+							math.clamp(pz + (rng:NextNumber() - 0.5) * 8, rz0 + 1.5, rz1 - 1.5),
+							rng:NextNumber() * 6.28, true)
+					end
+
+					messi += 1
+					c += 6.4
+				end
+				d += verso * 6.2
 			end
 		end
 	end
