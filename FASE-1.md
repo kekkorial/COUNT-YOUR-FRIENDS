@@ -12,62 +12,120 @@ diversa a ogni partita.
 
 ---
 
-## Prima di tutto: i due pannelli
+## Prima di iniziare
 
-In Studio, scheda **View** in alto. Accendi:
+**Una trappola in cui cascano tutti la prima volta:** quando premi Play, Studio
+entra in modalita' prova. Se modifichi qualcosa mentre sei li' dentro, quelle
+modifiche vengono **buttate via** quando premi Stop. Quindi: prima si incolla
+tutto, poi si prova.
 
-- **Explorer** — l'elenco di tutto quello che c'e' nel gioco. E' la cosa con cui
-  lavorerai sempre.
+### I due pannelli
+
+In alto c'e' una fila di schede (`Home`, `Model`, `Test`, `View`...). Clicca
+**`View`** e accendi:
+
+- **Explorer** — l'elenco di tutto cio' che esiste nel gioco. E' l'attrezzo
+  principale, lo userai sempre.
 - **Properties** — le proprieta' dell'oggetto selezionato nell'Explorer.
+
+Di solito si piazzano a destra, uno sopra l'altro.
 
 ---
 
-## Passo 1 — l'interruttore piu' importante
+## Passo 1 — l'interruttore della luce
 
-Questo cambia l'aspetto del gioco piu' di qualsiasi altra cosa farai oggi, ed e'
-l'unica che il codice non puo' fare da solo.
+Questo il codice non puo' farlo: Roblox non lo permette agli script. Ed e' la
+cosa che cambia di piu' l'aspetto del gioco.
 
-1. Nell'**Explorer**, clicca su **Lighting**.
-2. Nel **Properties**, cerca **Technology**.
-3. Mettilo su **Future**.
+1. Nell'**Explorer**, clic singolo su **`Lighting`**
+2. Nel **Properties** scorri fino alla riga **`Technology`**
+3. Clicca il valore accanto, si apre un menu': scegli **`Future`**
 
 E' il motore di illuminazione moderno: senza, le torce non proiettano ombre vere
 e l'atmosfera non arriva.
 
 ---
 
-## Passo 2 — creare i quattro fogli di codice
+## Passo 2 — GameConfig
 
-Ogni pezzo di codice va in un posto preciso e deve essere di un **tipo** preciso.
-Il tipo conta: un `Script` gira sul server (il computer di Roblox), un
-`LocalScript` gira sul dispositivo del giocatore, un `ModuleScript` non gira mai
-da solo ma viene letto dagli altri.
-
-Per crearli: nell'**Explorer**, passa il mouse sull'oggetto che deve contenerlo,
-compare un **+**, cliccalo e cerca il tipo. Poi rinominalo (doppio clic sul nome).
-
-| Dove | Tipo | Nome | Cosa incollarci |
-|---|---|---|---|
-| `ReplicatedStorage` | **ModuleScript** | `GameConfig` | `src/ReplicatedStorage/GameConfig.luau` |
-| `ServerScriptService` | **ModuleScript** | `MapGenerator` | `src/ServerScriptService/MapGenerator.luau` |
-| `ServerScriptService` | **Script** | `Main` | `src/ServerScriptService/Main.server.luau` |
-| `StarterPlayer` > `StarterPlayerScripts` | **LocalScript** | `Torch` | `src/StarterPlayerScripts/Torch.client.luau` |
-
-> I nomi devono essere **esattamente** questi, maiuscole comprese: gli script si
-> cercano per nome, e `gameconfig` non e' `GameConfig`.
-
-Per ognuno: apri il file corrispondente qui nella cartella, copia **tutto**,
-apri il foglio in Studio, **cancella quello che c'e' dentro** (Studio ci mette
-sempre una riga di esempio) e incolla.
+1. Nell'**Explorer**, cerca la riga **`ReplicatedStorage`**
+2. **Passaci sopra col mouse**: a destra della riga compare un **`+`** in un cerchio
+3. Clicca il `+`, si apre una casella di ricerca
+4. Scrivi **`ModuleScript`** e clicca il risultato
+5. Appare un oggetto nuovo dentro `ReplicatedStorage`, col nome gia' evidenziato:
+   scrivi **`GameConfig`** e premi Invio
+   *(se il nome non e' evidenziato: selezionalo e premi **F2**)*
+6. **Doppio clic sull'oggetto**: si apre l'editor di testo al centro
+7. Studio ci ha gia' messo una riga di esempio. **Cancellala**: clicca
+   nell'editor, poi `Ctrl+A` (`Cmd+A` su Mac) e `Canc`
+8. Apri `src/ReplicatedStorage/GameConfig.luau` su GitHub. In alto a destra del
+   riquadro del codice c'e' l'icona **"Copy raw file"** (due quadratini
+   sovrapposti): cliccala
+9. Torna in Studio, clicca dentro l'editor vuoto, `Ctrl+V`
 
 ---
 
-## Passo 3 — Play
+## Passo 3 — MapGenerator
 
-Premi il tasto **Play** (il triangolo in alto).
+Identico al passo 2, ma:
 
-Dovresti trovarti fuori dall'ingresso, al buio. Premi **F** per la torcia e
-entra.
+- contenitore: **`ServerScriptService`**
+- tipo: **`ModuleScript`**
+- nome: **`MapGenerator`**
+- codice: `src/ServerScriptService/MapGenerator.luau`
+
+---
+
+## Passo 4 — Main
+
+Stesso contenitore del passo 3, **ma attenzione al tipo**:
+
+- contenitore: **`ServerScriptService`**
+- tipo: **`Script`** — non `ModuleScript`, non `LocalScript`
+- nome: **`Main`**
+- codice: `src/ServerScriptService/Main.server.luau`
+
+> Il `.server` nel nome del file e' una convenzione per ricordare il tipo.
+> **In Studio l'oggetto si chiama solo `Main`.**
+
+---
+
+## Passo 5 — Torch
+
+Qui c'e' un passaggio in piu', perche' il contenitore e' annidato.
+
+1. Nell'**Explorer** trova **`StarterPlayer`**
+2. Alla sua **sinistra** c'e' una piccola freccia. Cliccala per aprirlo
+3. Dentro compaiono `StarterCharacterScripts` e **`StarterPlayerScripts`**
+4. Passa il mouse su **`StarterPlayerScripts`**, poi `+`
+5. Tipo: **`LocalScript`** — un `Script` normale, qui, non parte
+6. Nome: **`Torch`**
+7. Codice: `src/StarterPlayerScripts/Torch.client.luau`
+
+---
+
+## Passo 6 — controlla, salva, prova
+
+Nell'Explorer devi vedere esattamente questo:
+
+```
+ReplicatedStorage
+ └── GameConfig          (ModuleScript)
+ServerScriptService
+ ├── MapGenerator        (ModuleScript)
+ └── Main                (Script)
+StarterPlayer
+ └── StarterPlayerScripts
+      └── Torch          (LocalScript)
+```
+
+I nomi devono essere identici, **maiuscole comprese**: gli script si cercano per
+nome, e `gameconfig` non e' `GameConfig`.
+
+Poi `Ctrl+S` per salvare, e premi **Play** (il triangolo in alto). Per uscire,
+il quadrato **Stop**.
+
+Dovresti trovarti fuori dall'ingresso, al buio. Premi **F** per la torcia ed entra.
 
 ---
 
@@ -97,24 +155,18 @@ utili:
 
 ## Se qualcosa non va
 
-**Non succede niente / resta il pavimento grigio di prova**
-Guarda la finestra **Output** (scheda View > Output): se c'e' scritto in rosso
-`Main is not a valid member`, hai sbagliato un nome. Se c'e' `attempt to index
-nil`, probabilmente un ModuleScript e' stato creato come Script.
+Apri **`View` > `Output`**: e' la finestra dove il gioco scrive gli errori, in rosso.
 
-**Buio assoluto, non vedo niente nemmeno con la torcia**
-Controlla il passo 1 (`Technology` = `Future`). Se e' giusto, alza
-`TorchBrightness` in `GameConfig`.
+| Cosa leggi | Cosa significa |
+|---|---|
+| `... is not a valid member of ...` | un nome sbagliato, o un oggetto nel contenitore sbagliato |
+| `attempt to call a nil value` / `attempt to index nil` | un `ModuleScript` creato come `Script`, o viceversa |
+| niente in rosso, ma resta il pavimento grigio di prova | `Main` non sta girando: dev'essere uno `Script` dentro `ServerScriptService` |
+| tutto nero, non si vede niente nemmeno con la torcia | manca il passo 1 (`Technology` = `Future`). Se e' gia' giusto, alza `TorchBrightness` |
+| `F` non accende la torcia | `Torch` dev'essere un `LocalScript` dentro `StarterPlayerScripts` |
+| si passa attraverso i muri, o si cade nel vuoto | e' un difetto del generatore: segnalalo con quello che leggi nell'Output |
 
-**La torcia non si accende con F**
-`Torch` deve essere un **LocalScript** e stare dentro `StarterPlayerScripts`,
-non altrove. Se e' un `Script` normale non parte.
-
-**Passo attraverso i muri / cado nel vuoto**
-Segnalamelo con quello che leggi nell'Output: e' un difetto del generatore, non
-tuo.
-
----
+Se esce un errore che non e' in questa tabella, copialo e chiedi: si traduce.
 
 ## Poi
 
