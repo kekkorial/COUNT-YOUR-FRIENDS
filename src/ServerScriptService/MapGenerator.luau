@@ -43,6 +43,11 @@ local C_BOARD  = Color3.fromRGB(34, 44, 40)
 local C_GLASS  = Color3.fromRGB(150, 175, 190)
 local C_PAPER  = Color3.fromRGB(196, 190, 172)
 local C_MOON   = Color3.fromRGB(126, 158, 210)   -- la luce da fuori: fredda, per contrasto con la torcia
+local C_PANEL  = Color3.fromRGB(198, 196, 188)   -- pannelli del controsoffitto: chiari, quasi bianchi
+local C_DECK   = Color3.fromRGB(26, 26, 28)      -- la soletta vera sopra: quasi nera. E' il contrasto che fa la foto
+local C_BEAM   = Color3.fromRGB(42, 40, 38)
+local C_TBAR   = Color3.fromRGB(152, 150, 144)   -- l'orditura metallica che regge i pannelli
+local C_CABLE  = Color3.fromRGB(24, 24, 26)
 
 local function part(parent, props)
 	local p = Instance.new("Part")
@@ -85,6 +90,12 @@ function MapGenerator.build(parent)
 
 	local W, D = cfg.GridWidth, cfg.GridDepth
 	local T, H = cfg.WallThickness, cfg.WallHeight
+	-- H e' la quota del controsoffitto, cioe' il "soffitto" che vede il
+	-- giocatore. I muri pero' devono salire piu' su, fino alla soletta vera:
+	-- altrimenti, dove i pannelli sono caduti, si vedrebbe da una stanza
+	-- all'altra passando sopra i muri.
+	local PLEN = cfg.PlenumHeight
+	local HW = H + PLEN
 
 	-- --- 1. quali file e colonne sono corridoi ---
 	local corridorCol, corridorRow = {}, {}
@@ -286,9 +297,9 @@ function MapGenerator.build(parent)
 
 		if e.mode == "door" then
 			local half = cfg.DoorWidth / 2
-			segment(e.axis, e.fixed, e.from, mid - half, H, 0)
-			segment(e.axis, e.fixed, mid + half, e.to, H, 0)
-			local lintel = H - cfg.DoorHeight
+			segment(e.axis, e.fixed, e.from, mid - half, HW, 0)
+			segment(e.axis, e.fixed, mid + half, e.to, HW, 0)
+			local lintel = HW - cfg.DoorHeight
 			if lintel > 0.05 then
 				segment(e.axis, e.fixed, mid - half, mid + half, lintel, cfg.DoorHeight)
 			end
@@ -297,14 +308,14 @@ function MapGenerator.build(parent)
 		elseif e.mode == "window" then
 			local wWidth = math.min(cfg.DoorWidth + 4, (e.to - e.from) - 6)
 			if wWidth < 4 then
-				segment(e.axis, e.fixed, e.from, e.to, H, 0)
+				segment(e.axis, e.fixed, e.from, e.to, HW, 0)
 			else
 				local half = wWidth / 2
 				-- muro pieno ai lati, sotto il davanzale e sopra la finestra
-				segment(e.axis, e.fixed, e.from, mid - half, H, 0)
-				segment(e.axis, e.fixed, mid + half, e.to, H, 0)
+				segment(e.axis, e.fixed, e.from, mid - half, HW, 0)
+				segment(e.axis, e.fixed, mid + half, e.to, HW, 0)
 				segment(e.axis, e.fixed, mid - half, mid + half, SILL, 0)
-				segment(e.axis, e.fixed, mid - half, mid + half, H - HEAD, HEAD)
+				segment(e.axis, e.fixed, mid - half, mid + half, HW - HEAD, HEAD)
 				frame(e.axis, e.fixed, mid, wWidth, SILL, HEAD - SILL)
 
 				-- il vetro, quando c'e' ancora
@@ -337,7 +348,7 @@ function MapGenerator.build(parent)
 			end
 
 		else
-			segment(e.axis, e.fixed, e.from, e.to, H, 0)
+			segment(e.axis, e.fixed, e.from, e.to, HW, 0)
 		end
 	end
 
@@ -359,29 +370,209 @@ function MapGenerator.build(parent)
 		Color = Color3.fromRGB(54, 54, 52), Material = Enum.Material.Asphalt,
 	})
 
+	-- =========================================================
+	--  IL CONTROSOFFITTO CROLLATO
+	--
+	--  Due strati sovrapposti:
+	--    quota HW = H + PLEN : la soletta vera, scura, con le travi
+	--    quota H             : i pannelli chiari, appesi a un'orditura
+	--
+	--  Dove i pannelli sono caduti si apre il buio della struttura, ed e'
+	--  quel contrasto — chiaro sotto, nero sopra — a fare tutto il lavoro.
+	-- =========================================================
 	local ceilings = Instance.new("Folder")
-	ceilings.Name = "Soffitto"
+	ceilings.Name = "Controsoffitto"
 	ceilings.Parent = parent
+
+	-- Le ZONE di crollo. E' il punto che distingue un crollo credibile da uno
+	-- finto: il soffitto non cade a pannelli sparsi, cade a chiazze. Scegliendo
+	-- pannello per pannello a caso verrebbe una grattugia, non uno squarcio.
+	local centers = {}
+	for _ = 1, cfg.CeilingCollapses do
+		table.insert(centers, {
+			x = rng:NextNumber() * totalX,
+			z = rng:NextNumber() * totalZ,
+			r = cfg.CollapseRadius * (0.55 + rng:NextNumber() * 0.9),
+		})
+	end
+
+	-- Dove manca la soletta vera, sotto e' per forza crollato tutto.
+	local roofHole = {}
+	for _ = 1, cfg.RoofHoles do
+		local hx, hz = rng:NextInteger(1, W), rng:NextInteger(1, D)
+		roofHole[hx .. ":" .. hz] = true
+		table.insert(centers, {
+			x = (xEdge[hx] + xEdge[hx + 1]) / 2,
+			z = (zEdge[hz] + zEdge[hz + 1]) / 2,
+			r = cfg.CollapseRadius * 0.75,
+		})
+	end
+
+	-- Un pannello e' caduto? Al centro di una chiazza sempre, verso il bordo
+	-- sempre meno: e' il bordo sfumato che fa sembrare un crollo invece di un
+	-- ritaglio col righello.
+	local function caduto(px, pz)
+		for _, c in ipairs(centers) do
+			local dx, dz = px - c.x, pz - c.z
+			local t = math.sqrt(dx * dx + dz * dz) / c.r
+			if t < 1 and rng:NextNumber() > t * t then return true end
+		end
+		return rng:NextNumber() < cfg.StrayHoleChance
+	end
 
 	for y = 1, D do
 		for x = 1, W do
-			local cx = (xEdge[x] + xEdge[x + 1]) / 2
-			local cz = (zEdge[y] + zEdge[y + 1]) / 2
-			if rng:NextNumber() > cfg.HoleChance then
-				part(ceilings, {
-					Size = Vector3.new(xEdge[x + 1] - xEdge[x], 1, zEdge[y + 1] - zEdge[y]),
-					CFrame = CFrame.new(cx, H + 0.5, cz),
-					Color = jc(C_CEIL),
+			local x0, x1 = xEdge[x], xEdge[x + 1]
+			local z0, z1 = zEdge[y], zEdge[y + 1]
+			local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+
+			-- --- la soletta vera ---
+			if roofHole[x .. ":" .. y] then
+				table.insert(fillCandidates, {
+					pos = Vector3.new(cx, HW - 1.5, cz),
+					range = 42, brightness = cfg.MoonLight * 1.5,
 				})
 			else
-				-- Il soffitto e' crollato: da li' entra la luna. Prima questi
-				-- buchi erano solo neri e non si capiva nemmeno che c'erano.
-				table.insert(fillCandidates, {
-					pos = Vector3.new(cx, H - 1, cz),
-					range = 34, brightness = cfg.MoonLight * 1.3,
+				part(ceilings, {
+					Size = Vector3.new(x1 - x0, 1, z1 - z0),
+					CFrame = CFrame.new(cx, HW + 0.5, cz),
+					Color = jc(C_DECK),
+				})
+			end
+
+			-- --- quali pannelli sono caduti ---
+			local nx = math.max(1, math.floor((x1 - x0) / cfg.CeilingTile))
+			local nz = math.max(1, math.floor((z1 - z0) / cfg.CeilingTile))
+			local tw, td = (x1 - x0) / nx, (z1 - z0) / nz
+
+			local buco, quanti = {}, 0
+			for i = 1, nx do
+				buco[i] = {}
+				for j = 1, nz do
+					local h = caduto(x0 + (i - 0.5) * tw, z0 + (j - 0.5) * td)
+					buco[i][j] = h
+					if h then quanti += 1 end
+				end
+			end
+			local frazione = quanti / (nx * nz)
+
+			-- --- i pannelli rimasti ---
+			-- Accorpati per file: una fila di pannelli intatti diventa UN pezzo
+			-- invece di sei. A vedersi e' identico, e costa un quarto.
+			for j = 1, nz do
+				local inizio = nil
+				for i = 1, nx + 1 do
+					local intatto = (i <= nx) and not buco[i][j]
+					if intatto then
+						inizio = inizio or i
+					elseif inizio then
+						local a = x0 + (inizio - 1) * tw
+						local b = x0 + (i - 1) * tw
+						part(ceilings, {
+							Size = Vector3.new(b - a, 0.4, td),
+							CFrame = CFrame.new((a + b) / 2, H, z0 + (j - 0.5) * td),
+							Color = jc(C_PANEL), Material = Enum.Material.Sandstone,
+						})
+						inizio = nil
+					end
+				end
+			end
+
+			-- --- l'orditura metallica ---
+			-- Solo dove il crollo e' parziale: se non e' caduto niente non si
+			-- vede comunque, e se e' caduto tutto e' venuta giu' anche lei.
+			if frazione > 0.15 and frazione < 0.9 then
+				for i = 0, nx do
+					part(ceilings, {
+						Size = Vector3.new(0.25, 0.3, z1 - z0),
+						CFrame = CFrame.new(x0 + i * tw, H + 0.35, cz),
+						Color = jc(C_TBAR), Material = Enum.Material.Metal,
+						CanCollide = false,
+					})
+				end
+				for j = 0, nz do
+					part(ceilings, {
+						Size = Vector3.new(x1 - x0, 0.3, 0.25),
+						CFrame = CFrame.new(cx, H + 0.35, z0 + j * td),
+						Color = jc(C_TBAR), Material = Enum.Material.Metal,
+						CanCollide = false,
+					})
+				end
+			end
+
+			-- --- fili appesi nel vuoto, e pannelli che pendono ---
+			for i = 1, nx do
+				for j = 1, nz do
+					if buco[i][j] then
+						local px = x0 + (i - 0.5) * tw
+						local pz = z0 + (j - 0.5) * td
+
+						-- il filo che reggeva il pannello, rimasto li'
+						if rng:NextNumber() < cfg.HangerChance then
+							part(ceilings, {
+								Size = Vector3.new(0.14, PLEN, 0.14),
+								CFrame = CFrame.new(px, H + PLEN / 2, pz),
+								Color = jc(C_TBAR), Material = Enum.Material.Metal,
+								CanCollide = false,
+							})
+						end
+
+						-- Un pannello staccato da un lato che pende. Ha senso
+						-- solo sul BORDO di uno squarcio: in mezzo al vuoto
+						-- sarebbe appeso a niente.
+						local bordo = (i > 1 and not buco[i - 1][j])
+							or (i < nx and not buco[i + 1][j])
+							or (j > 1 and not buco[i][j - 1])
+							or (j < nz and not buco[i][j + 1])
+						if bordo and rng:NextNumber() < cfg.HangingPanels then
+							part(ceilings, {
+								Size = Vector3.new(tw * 0.85, 0.4, td * 0.85),
+								CFrame = CFrame.new(px, H - 1.4, pz)
+									* CFrame.Angles(
+										math.rad(rng:NextInteger(28, 62)),
+										rng:NextNumber() * 6.28, 0),
+								Color = jc(C_PANEL), Material = Enum.Material.Sandstone,
+								CanCollide = false,
+							})
+						end
+					end
+				end
+			end
+
+			-- --- cavi che penzolano ---
+			-- Nella foto di riferimento e' il dettaglio che dice "qui dentro
+			-- qualcosa si e' rotto e nessuno l'ha aggiustato".
+			if isCorridor(x, y) and rng:NextNumber() < cfg.DanglingCables then
+				local len = rng:NextNumber() * 4 + 2.5
+				part(ceilings, {
+					Size = Vector3.new(0.18, len, 0.18),
+					CFrame = CFrame.new(
+						cx + (rng:NextNumber() - 0.5) * 6,
+						H - len / 2 + 0.4,
+						cz + (rng:NextNumber() - 0.5) * 6)
+						* CFrame.Angles(math.rad(rng:NextInteger(-15, 15)), 0,
+							math.rad(rng:NextInteger(-15, 15))),
+					Color = C_CABLE, Material = Enum.Material.SmoothPlastic,
+					CanCollide = false,
 				})
 			end
 		end
+	end
+
+	-- --- le travi della soletta ---
+	-- Attraversano tutto l'edificio invece di essere spezzate stanza per
+	-- stanza: cosi' sono 20 pezzi invece di 200, e dove il controsoffitto e'
+	-- caduto si vede la struttura proseguire nel buio.
+	local passo = 9
+	local b = passo / 2
+	while b < totalZ do
+		part(ceilings, {
+			Size = Vector3.new(totalX, 1.1, 0.9),
+			CFrame = CFrame.new(totalX / 2, HW - 0.7, b),
+			Color = jc(C_BEAM), Material = Enum.Material.Metal,
+			CanCollide = false,
+		})
+		b += passo
 	end
 
 	-- --- 7b. accendi la luna, ma con giudizio ---
@@ -460,7 +651,7 @@ function MapGenerator.build(parent)
 					local off = (rng:NextNumber() - 0.5) * (along and sz or sx) * 0.5
 					part(props, {
 						Size = along and Vector3.new(sx, 0.8, 0.8) or Vector3.new(0.8, 0.8, sz),
-						CFrame = CFrame.new(along and cx or cx + off, H - 1.8, along and cz + off or cz),
+						CFrame = CFrame.new(along and cx or cx + off, H + PLEN * 0.55, along and cz + off or cz),
 						Color = jc(C_METAL), Material = Enum.Material.CorrodedMetal,
 						CanCollide = false,
 					})

@@ -29,7 +29,24 @@ GameConfig.DoorWidth     = 8    -- larghezza dei vani porta
 GameConfig.DoorHeight    = 10
 
 GameConfig.MergeChance   = 0.55 -- probabilita' che due aule vicine diventino un'aula sola (piu' alto = stanze piu' grandi e irregolari)
-GameConfig.HoleChance    = 0.12 -- probabilita' che un pezzo di soffitto sia crollato
+
+-- ============================================================
+--  IL CONTROSOFFITTO CROLLATO
+--  Sono due strati: in alto la soletta vera, scura, con le travi; sotto i
+--  pannelli chiari appesi a un'orditura metallica. Dove i pannelli sono caduti
+--  si vede il buio della struttura — ed e' quello il colpo d'occhio.
+-- ============================================================
+GameConfig.PlenumHeight     = 4.5  -- quanto e' alta la cavita' fra i pannelli e la soletta
+GameConfig.CeilingTile      = 8    -- lato di un pannello
+
+GameConfig.CeilingCollapses = 7    -- quante ZONE di crollo. Non pannelli sparsi: chiazze
+GameConfig.CollapseRadius   = 34   -- quanto sono larghe. Piu' grande = squarci piu' lunghi
+GameConfig.StrayHoleChance  = 0.05 -- pannelli mancanti isolati, fuori dalle chiazze
+
+GameConfig.HangingPanels  = 0.16 -- pannelli staccati da un lato che pendono, sul bordo dei crolli
+GameConfig.HangerChance   = 0.22 -- fili di sostegno rimasti appesi nel vuoto
+GameConfig.DanglingCables = 0.3  -- cavi che penzolano dai corridoi
+GameConfig.RoofHoles      = 4    -- buchi nella soletta VERA: da li' entra la luna
 
 -- ============================================================
 --  ARREDAMENTO
