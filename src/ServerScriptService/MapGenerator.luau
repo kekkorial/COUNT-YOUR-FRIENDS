@@ -32,10 +32,10 @@ local MapGenerator = {}
 -- ------------------------------------------------------------
 --  Tavolozza
 -- ------------------------------------------------------------
-local C_WALL   = Color3.fromRGB(126, 122, 110)   -- intonaco sporco
+local C_WALL   = Color3.fromRGB(178, 174, 164)   -- intonaco chiaro. Muri pallidi su pavimento scuro: e' il rapporto che regge la foto di riferimento
 local C_TRIM   = Color3.fromRGB(64, 84, 78)      -- verde istituzionale della zoccolatura
 local C_FRAME  = Color3.fromRGB(104, 96, 82)     -- stipiti
-local C_FLOOR  = Color3.fromRGB(84, 82, 78)
+local C_FLOOR  = Color3.fromRGB(60, 58, 55)      -- il pavimento resta scuro: e' il contrasto coi muri a dare profondita'
 local C_CEIL   = Color3.fromRGB(98, 96, 90)
 local C_METAL  = Color3.fromRGB(76, 82, 80)
 local C_WOOD   = Color3.fromRGB(94, 72, 50)
@@ -48,6 +48,8 @@ local C_DECK   = Color3.fromRGB(26, 26, 28)      -- la soletta vera sopra: quasi
 local C_BEAM   = Color3.fromRGB(42, 40, 38)
 local C_TBAR   = Color3.fromRGB(152, 150, 144)   -- l'orditura metallica che regge i pannelli
 local C_CABLE  = Color3.fromRGB(24, 24, 26)
+local C_DAMAGE = Color3.fromRGB(132, 104, 88)    -- il mattone che si scopre dove l'intonaco e' caduto
+local C_LOCKER = Color3.fromRGB(72, 88, 94)      -- lamiera verniciata degli armadietti
 
 local function part(parent, props)
 	local p = Instance.new("Part")
@@ -242,6 +244,30 @@ function MapGenerator.build(parent)
 			})
 		end
 
+		-- Intonaco caduto, col mattone sotto. E' l'unico modo che ho per
+		-- simulare una superficie rovinata senza usare immagini: una toppa di
+		-- colore e materiale diversi, appiccicata al muro.
+		if len > 6 and rng:NextNumber() < cfg.WallDamage then
+			local pw = math.min(len * 0.5, rng:NextNumber() * 9 + 3)
+			local ph = math.min(height * 0.6, rng:NextNumber() * 6 + 2)
+			local px = from + pw / 2 + rng:NextNumber() * (len - pw)
+			local py = yBottom + ph / 2 + rng:NextNumber() * (height - ph)
+			local lato = rng:NextNumber() < 0.5 and 1 or -1
+			if axis == "X" then
+				part(walls, {
+					Size = Vector3.new(pw, ph, 0.4),
+					CFrame = CFrame.new(px, py, fixed + lato * (T / 2 + 0.1)),
+					Color = jc(C_DAMAGE), Material = Enum.Material.Brick, CanCollide = false,
+				})
+			else
+				part(walls, {
+					Size = Vector3.new(0.4, ph, pw),
+					CFrame = CFrame.new(fixed + lato * (T / 2 + 0.1), py, px),
+					Color = jc(C_DAMAGE), Material = Enum.Material.Brick, CanCollide = false,
+				})
+			end
+		end
+
 		-- La fascia dipinta in basso. Sporge di poco dal muro: e' quel gradino
 		-- che l'occhio legge come "edificio vero" invece che "scatola".
 		if cfg.Baseboard and yBottom < 0.1 then
@@ -305,6 +331,27 @@ function MapGenerator.build(parent)
 			end
 			frame(e.axis, e.fixed, mid, cfg.DoorWidth, 0, cfg.DoorHeight)
 
+			-- L'anta, spalancata. Un vano vuoto sembra un buco nel muro; una
+			-- porta aperta di traverso dice che qualcuno e' passato di qui.
+			-- Non fa collisione: se l'angolo la mettesse di traverso nel
+			-- passaggio, non deve poter intrappolare nessuno.
+			if rng:NextNumber() < cfg.DoorSlabs then
+				local dw, dh = cfg.DoorWidth - 0.6, cfg.DoorHeight - 0.4
+				local lato = rng:NextNumber() < 0.5 and 1 or -1
+				local cardine = mid + lato * (cfg.DoorWidth / 2)
+				local ang = math.rad(rng:NextInteger(35, 100)) * (rng:NextNumber() < 0.5 and 1 or -1)
+				local base = (e.axis == "X")
+					and CFrame.new(cardine, dh / 2 + 0.2, e.fixed)
+					or CFrame.new(e.fixed, dh / 2 + 0.2, cardine)
+				local yaw = (e.axis == "X") and 0 or math.rad(90)
+				part(walls, {
+					Size = Vector3.new(dw, dh, 0.4),
+					CFrame = base * CFrame.Angles(0, yaw + ang, 0) * CFrame.new(-lato * dw / 2, 0, 0),
+					Color = jc(C_FRAME), Material = Enum.Material.WoodPlanks,
+					CanCollide = false,
+				})
+			end
+
 		elseif e.mode == "window" then
 			local wWidth = math.min(cfg.DoorWidth + 4, (e.to - e.from) - 6)
 			if wWidth < 4 then
@@ -318,21 +365,56 @@ function MapGenerator.build(parent)
 				segment(e.axis, e.fixed, mid - half, mid + half, HW - HEAD, HEAD)
 				frame(e.axis, e.fixed, mid, wWidth, SILL, HEAD - SILL)
 
-				-- il vetro, quando c'e' ancora
+				local gh = HEAD - SILL
+				local centro = (e.axis == "X")
+					and Vector3.new(mid, SILL + gh / 2, e.fixed)
+					or Vector3.new(e.fixed, SILL + gh / 2, mid)
+
+				-- I traversi restano anche quando il vetro non c'e' piu'.
+				-- Senza, l'apertura e' un rettangolo vuoto e si vede che e' finta.
+				local function traverso(size)
+					part(walls, {
+						Size = size, CFrame = CFrame.new(centro),
+						Color = jc(C_FRAME), Material = Enum.Material.WoodPlanks,
+						CanCollide = false,
+					})
+				end
+				if e.axis == "X" then
+					traverso(Vector3.new(0.45, gh, T * 0.5))
+					traverso(Vector3.new(wWidth, 0.45, T * 0.5))
+				else
+					traverso(Vector3.new(T * 0.5, gh, 0.45))
+					traverso(Vector3.new(T * 0.5, 0.45, wWidth))
+				end
+
 				if rng:NextNumber() > cfg.BrokenGlass then
-					local gh = HEAD - SILL
-					local size = (e.axis == "X")
-						and Vector3.new(wWidth, gh, 0.3)
-						or Vector3.new(0.3, gh, wWidth)
-					local pos = (e.axis == "X")
-						and Vector3.new(mid, SILL + gh / 2, e.fixed)
-						or Vector3.new(e.fixed, SILL + gh / 2, mid)
 					part(walls, {
 						Name = "Vetro",
-						Size = size, CFrame = CFrame.new(pos),
+						Size = (e.axis == "X") and Vector3.new(wWidth, gh, 0.3)
+							or Vector3.new(0.3, gh, wWidth),
+						CFrame = CFrame.new(centro),
 						Color = C_GLASS, Material = Enum.Material.Glass,
 						Transparency = 0.65, Reflectance = 0.08,
 					})
+				else
+					-- il vetro rotto e' finito per terra, dentro
+					local verso = (e.axis == "X")
+						and (e.fixed < totalZ / 2 and 1 or -1)
+						or (e.fixed < totalX / 2 and 1 or -1)
+					for _ = 1, rng:NextInteger(4, 8) do
+						local lungo = (rng:NextNumber() - 0.5) * wWidth * 1.3
+						local dentro = verso * (rng:NextNumber() * 6 + 1)
+						part(walls, {
+							Size = Vector3.new(rng:NextNumber() * 1.3 + 0.3, 0.06,
+								rng:NextNumber() * 1.3 + 0.3),
+							CFrame = CFrame.new(
+								(e.axis == "X") and mid + lungo or e.fixed + dentro, 0.06,
+								(e.axis == "X") and e.fixed + dentro or mid + lungo)
+								* CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
+							Color = C_GLASS, Material = Enum.Material.Glass,
+							Transparency = 0.4, Reflectance = 0.15, CanCollide = false,
+						})
+					end
 				end
 
 				-- La luce lunare che entra. E' fredda apposta: contro il giallo
@@ -563,8 +645,8 @@ function MapGenerator.build(parent)
 	-- Attraversano tutto l'edificio invece di essere spezzate stanza per
 	-- stanza: cosi' sono 20 pezzi invece di 200, e dove il controsoffitto e'
 	-- caduto si vede la struttura proseguire nel buio.
-	local passo = 9
-	local b = passo / 2
+	local passoTravi = 9
+	local b = passoTravi / 2
 	while b < totalZ do
 		part(ceilings, {
 			Size = Vector3.new(totalX, 1.1, 0.9),
@@ -572,7 +654,7 @@ function MapGenerator.build(parent)
 			Color = jc(C_BEAM), Material = Enum.Material.Metal,
 			CanCollide = false,
 		})
-		b += passo
+		b += passoTravi
 	end
 
 	-- --- 7b. accendi la luna, ma con giudizio ---
@@ -619,30 +701,69 @@ function MapGenerator.build(parent)
 			local along = corridorRow[y] == true   -- il corridoio corre lungo X?
 
 			if id == 0 then
-				-- armadietti contro un muro
-				if rng:NextNumber() < cfg.LockerChance then
+				-- ARMADIETTI: una fila CONTINUA contro un muro.
+				-- Un armadietto isolato in mezzo a un corridoio non esiste: quello
+				-- che l'occhio riconosce e' la teoria di ante uguali di fila, con
+				-- le fughe verticali fra l'una e l'altra. Prima ne mettevo quattro
+				-- staccati, e infatti sembravano quattro scatole.
+				local lungoAsse = along and sx or sz
+				local perpAsse  = along and sz or sx
+				-- La fila sta in una meta' sola della casella: al centro del muro
+				-- cade il vano porta, e murare un'aula sarebbe un difetto grave.
+				local estensione = lungoAsse / 2 - cfg.DoorWidth / 2 - 2
+
+				if estensione >= 4 and rng:NextNumber() < cfg.LockerChance then
 					local lato = rng:NextNumber() < 0.5 and -1 or 1
-					-- Posizioni scelte per evitare la meta' del muro: li' cadono i
-					-- vani porta, e un armadietto davanti a una porta mura un'aula.
-					for _, t in ipairs({ 0.12, 0.3, 0.7, 0.88 }) do
-						local px = along and (xEdge[x] + t * sx) or (cx + lato * (sx / 2 - 1.6))
-						local pz = along and (cz + lato * (sz / 2 - 1.6)) or (zEdge[y] + t * sz)
+					local verso = rng:NextNumber() < 0.5 and -1 or 1
+					local DEPTH, HEIGHT = 2.6, 8.5
+					local centroFila = (along and cx or cz)
+						+ verso * (cfg.DoorWidth / 2 + 1 + estensione / 2)
+					local muro = (along and cz or cx)
+						+ lato * (perpAsse / 2 - DEPTH / 2 - T / 2 - 0.2)
+
+					-- un pezzo della fila, orientato secondo il corridoio
+					local function pezzo(lungo, alto, prof, lungoPos, altoPos, col, mat)
 						part(props, {
-							Size = Vector3.new(along and 3 or 2, 7, along and 2 or 3),
-							CFrame = CFrame.new(px, 3.5, pz),
-							Color = jc(C_METAL), Material = Enum.Material.DiamondPlate,
+							Size = along and Vector3.new(lungo, alto, prof)
+								or Vector3.new(prof, alto, lungo),
+							CFrame = CFrame.new(
+								along and lungoPos or muro, altoPos,
+								along and muro or lungoPos),
+							Color = col or jc(C_LOCKER),
+							Material = mat or Enum.Material.DiamondPlate,
 						})
-						-- uno sportello spalancato ogni tanto
-						if rng:NextNumber() < 0.25 then
-							part(props, {
-								Size = Vector3.new(0.2, 6, 2.6),
-								CFrame = CFrame.new(px, 3.5, pz)
-									* CFrame.Angles(0, math.rad(along and 65 or -25), 0)
-									* CFrame.new(0, 0, 1.6),
-								Color = jc(C_METAL), Material = Enum.Material.CorrodedMetal,
-								CanCollide = false,
-							})
-						end
+					end
+
+					pezzo(estensione, HEIGHT, DEPTH, centroFila, 0.8 + HEIGHT / 2)
+					pezzo(estensione + 0.5, 0.8, DEPTH + 0.5, centroFila, 0.4)              -- zoccolo
+					pezzo(estensione + 0.5, 0.7, DEPTH + 0.6, centroFila, 0.8 + HEIGHT)     -- cimasa
+
+					-- Le fughe fra un'anta e l'altra. Sono il dettaglio che fa
+					-- leggere "armadietti" invece che "parallelepipedo grigio".
+					local ante = math.max(2, math.floor(estensione / 3))
+					local passo = estensione / ante
+					for k = 0, ante do
+						pezzo(0.2, HEIGHT - 1, DEPTH + 0.3,
+							centroFila - estensione / 2 + k * passo, 0.8 + HEIGHT / 2,
+							Color3.fromRGB(28, 30, 31), Enum.Material.Metal)
+					end
+
+					-- Un'anta spalancata, perpendicolare alla fila. La tengo a 90
+					-- gradi esatti invece che a un angolo casuale: cosi' non c'e'
+					-- modo che finisca dentro il muro.
+					if rng:NextNumber() < 0.5 then
+						local k = rng:NextInteger(0, ante - 1)
+						local cardine = centroFila - estensione / 2 + (k + 0.05) * passo
+						local fuori = muro - lato * (DEPTH / 2 + passo * 0.46)
+						part(props, {
+							Size = along and Vector3.new(0.2, HEIGHT - 1.4, passo * 0.92)
+								or Vector3.new(passo * 0.92, HEIGHT - 1.4, 0.2),
+							CFrame = CFrame.new(
+								along and cardine or fuori, 0.8 + HEIGHT / 2,
+								along and fuori or cardine),
+							Color = jc(C_LOCKER), Material = Enum.Material.CorrodedMetal,
+							CanCollide = false,
+						})
 					end
 				end
 
@@ -739,14 +860,24 @@ function MapGenerator.build(parent)
 				testo.Parent = gui
 			end
 
+			-- Dove cade la roba per terra. Nei posti abbandonati i detriti non
+			-- sono sparsi uniformemente: si ammucchiano contro i muri, perche'
+			-- li' nessuno li ha mai calpestati via. Spargerli a caso e' la cosa
+			-- che piu' fa sembrare finto un pavimento.
+			local function sparso(centro, ampiezza)
+				if rng:NextNumber() < cfg.DebrisHugWalls then
+					local bordo = rng:NextNumber() < 0.5 and -1 or 1
+					return centro + bordo * (ampiezza / 2 - 1.5 - rng:NextNumber() * 3)
+				end
+				return centro + (rng:NextNumber() - 0.5) * (ampiezza - 5)
+			end
+
 			-- fogli sparsi ovunque: costano poco e sporcano molto
 			for _ = 1, cfg.PapersPerCell do
 				part(props, {
 					Size = Vector3.new(1.3, 0.04, 0.95),
-					CFrame = CFrame.new(
-						cx + (rng:NextNumber() - 0.5) * (sx - 3), 0.05,
-						cz + (rng:NextNumber() - 0.5) * (sz - 3)
-					) * CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
+					CFrame = CFrame.new(sparso(cx, sx), 0.05, sparso(cz, sz))
+						* CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
 					Color = jc(C_PAPER), Material = Enum.Material.SmoothPlastic,
 					CanCollide = false,
 				})
@@ -757,10 +888,8 @@ function MapGenerator.build(parent)
 				local s = rng:NextNumber() * 2 + 0.6
 				part(props, {
 					Size = Vector3.new(s, s * 0.4, s),
-					CFrame = CFrame.new(
-						cx + (rng:NextNumber() - 0.5) * (sx - 4), s * 0.2,
-						cz + (rng:NextNumber() - 0.5) * (sz - 4)
-					) * CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
+					CFrame = CFrame.new(sparso(cx, sx), s * 0.2, sparso(cz, sz))
+						* CFrame.Angles(0, rng:NextNumber() * 6.28, 0),
 					Color = jc(C_CEIL), Material = Enum.Material.Rock,
 				})
 			end

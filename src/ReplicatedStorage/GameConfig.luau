@@ -23,7 +23,7 @@ GameConfig.CorridorEvery = 3    -- ogni quante caselle passa un corridoio
 GameConfig.RoomSize      = 26   -- lato di un'aula, in "studs" (l'unita' di Roblox: un giocatore e' alto ~5)
 GameConfig.CorridorWidth = 14   -- larghezza di un corridoio
 GameConfig.WallHeight    = 14   -- altezza dei muri
-GameConfig.WallThickness = 1
+GameConfig.WallThickness = 3    -- muri spessi: e' cosi' che i vani porta acquistano profondita' invece di sembrare ritagli nel cartone
 
 GameConfig.DoorWidth     = 8    -- larghezza dei vani porta
 GameConfig.DoorHeight    = 10
@@ -46,7 +46,7 @@ GameConfig.StrayHoleChance  = 0.05 -- pannelli mancanti isolati, fuori dalle chi
 GameConfig.HangingPanels  = 0.16 -- pannelli staccati da un lato che pendono, sul bordo dei crolli
 GameConfig.HangerChance   = 0.22 -- fili di sostegno rimasti appesi nel vuoto
 GameConfig.DanglingCables = 0.3  -- cavi che penzolano dai corridoi
-GameConfig.RoofHoles      = 4    -- buchi nella soletta VERA: da li' entra la luna
+GameConfig.RoofHoles      = 0    -- buchi nella soletta VERA. A 0 il tetto e' sigillato e non si vede mai il cielo; alzandolo si aprono squarci da cui entra la luna
 
 -- ============================================================
 --  ARREDAMENTO
@@ -55,7 +55,11 @@ GameConfig.RoofHoles      = 4    -- buchi nella soletta VERA: da li' entra la lu
 -- ============================================================
 GameConfig.DesksPerRoom   = 6
 GameConfig.LockerChance   = 0.6   -- probabilita' di armadietti lungo un muro di corridoio
-GameConfig.DebrisPerCell  = 2     -- calcinacci e cose rovesciate
+GameConfig.DebrisPerCell  = 3     -- calcinacci e cose rovesciate
+GameConfig.DebrisHugWalls = 0.7   -- quanta di quella roba si ammucchia contro i muri invece di stare sparsa. Nei posti abbandonati i detriti stanno ai bordi
+
+GameConfig.WallDamage = 0.35      -- probabilita' che un tratto di muro abbia l'intonaco caduto, con il mattone sotto
+GameConfig.DoorSlabs  = 0.55      -- probabilita' che un vano porta abbia ancora l'anta, spalancata
 
 -- ============================================================
 --  ESTETICA
