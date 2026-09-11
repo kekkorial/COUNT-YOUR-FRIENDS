@@ -41,6 +41,30 @@ GameConfig.LockerChance   = 0.6   -- probabilita' di armadietti lungo un muro di
 GameConfig.DebrisPerCell  = 2     -- calcinacci e cose rovesciate
 
 -- ============================================================
+--  ESTETICA
+--  Nessuno di questi cambia il gioco: cambiano solo com'e' fatto l'ambiente.
+--  Sono le cose che trasformano "scatole grigie" in "scuola abbandonata".
+--  Se il gioco ti va a scatti sul telefono, e' qui che si taglia.
+-- ============================================================
+GameConfig.ColorJitter = 0.16  -- quanto varia il colore fra un pezzo e l'altro. A 0 tutto identico: e' cio' che fa sembrare tutto plastica
+
+GameConfig.Baseboard       = true  -- la fascia dipinta in basso ai muri: il dettaglio che rende di piu' in assoluto
+GameConfig.BaseboardHeight = 5
+
+GameConfig.DoorFrames = true   -- stipiti attorno ai vani porta
+
+GameConfig.WindowChance = 0.5  -- probabilita' che un tratto di muro esterno sia una finestra
+GameConfig.BrokenGlass  = 0.4  -- di quelle, quante hanno il vetro rotto (aperte)
+GameConfig.MoonLight    = 1.1  -- quanta luce lunare entra da finestre e buchi nel soffitto
+GameConfig.MaxFillLights = 16  -- tetto alle luci lunari: oltre una certa soglia Roblox ne scarta alcune a caso e le vedi sparire mentre cammini
+
+GameConfig.PipeChance   = 0.45 -- tubi sotto il soffitto dei corridoi
+GameConfig.PuddleChance = 0.3  -- pozze d'acqua: riflettono la torcia
+GameConfig.PapersPerCell = 3   -- fogli sparsi per terra
+GameConfig.OverturnedDesks = 0.28 -- quota di banchi rovesciati
+GameConfig.ChairChance  = 0.5  -- probabilita' che un banco abbia la sedia
+
+-- ============================================================
 --  LUCI SUPERSTITI
 --  Quasi tutti i neon sono morti. Quelli vivi sfarfallano: e' quello che
 --  da' l'atmosfera, molto piu' dei modelli.
