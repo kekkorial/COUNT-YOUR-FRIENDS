@@ -222,6 +222,17 @@ function MapGenerator.build(parent)
 		Material = Enum.Material.Slate,
 	})
 
+	-- Piazzale esterno. Senza, chi compare fuori o esce dalla porta cade nel
+	-- vuoto: il pavimento di sopra copre solo l'interno dell'edificio.
+	local margine = 70
+	part(parent, {
+		Name = "Piazzale",
+		Size = Vector3.new(totalX + margine * 2, 2, totalZ + margine * 2),
+		CFrame = CFrame.new(totalX / 2, -1.15, totalZ / 2),
+		Color = Color3.fromRGB(54, 54, 52),
+		Material = Enum.Material.Asphalt,
+	})
+
 	local ceilings = Instance.new("Folder")
 	ceilings.Name = "Soffitto"
 	ceilings.Parent = parent
@@ -350,8 +361,28 @@ function MapGenerator.build(parent)
 		end
 	end
 
-	-- --- 10. dove compaiono i giocatori: fuori dall'ingresso ---
+	-- --- 10. la lampada sopra l'ingresso ---
+	-- Non e' decorazione: fuori e' nero assoluto e senza un punto verso cui
+	-- camminare non si trova la porta. E' anche il riferimento per ritrovare
+	-- l'uscita dall'interno.
 	local entranceX = (xEdge[entranceCol] + xEdge[entranceCol + 1]) / 2
+
+	local lampada = part(parent, {
+		Name = "LampadaIngresso",
+		Size = Vector3.new(4, 0.6, 1.2),
+		CFrame = CFrame.new(entranceX, cfg.DoorHeight + 2, totalZ + 1.6),
+		Color = Color3.fromRGB(255, 236, 190),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+	})
+	local luce = Instance.new("PointLight")
+	luce.Range      = 38
+	luce.Brightness = 2.2
+	luce.Color      = Color3.fromRGB(255, 226, 170)
+	luce.Parent     = lampada
+	lampada:SetAttribute("Flicker", true)
+
+	-- --- 11. dove compaiono i giocatori: fuori dall'ingresso, sul piazzale ---
 	return CFrame.new(entranceX, 3, totalZ + 16), Vector3.new(totalX, H, totalZ)
 end
 

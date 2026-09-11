@@ -98,6 +98,11 @@ mappa.Parent = workspace
 
 local spawnCFrame = MapGenerator.build(mappa)
 
+-- Riga di controllo: se nella finestra Output leggi questo messaggio, la scuola
+-- e' stata costruita davvero e l'eventuale problema e' altrove (luce, torcia,
+-- punto di comparsa). Se NON lo leggi, il problema e' prima di qui.
+print(("[Count Your Friends] Scuola costruita: %d oggetti."):format(#mappa:GetDescendants()))
+
 local spawn = Instance.new("SpawnLocation")
 spawn.Name        = "Ingresso"
 spawn.Size        = Vector3.new(12, 1, 12)
