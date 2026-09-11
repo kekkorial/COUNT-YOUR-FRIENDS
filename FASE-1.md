@@ -32,6 +32,25 @@ Di solito si piazzano a destra, uno sopra l'altro.
 
 ---
 
+### Se hai Studio in italiano
+
+I nomi degli oggetti restano in inglese in **qualsiasi** lingua, perche' non sono
+parole ma identificatori del programma: `ReplicatedStorage`, `ServerScriptService`,
+`StarterPlayer`, `Lighting`, `ModuleScript`, `Script`, `LocalScript`, `Technology`,
+`Future`. Tutto l'albero dell'Explorer e tutti i nomi nel pannello delle proprieta'
+sono quindi identici a quelli scritti qui.
+
+Cambiano solo le etichette in alto: la scheda `View` si chiama `Visualizza` e
+`Properties` diventa `Proprieta'`. Se non ritrovi un pannello col nome giusto,
+vai per icona: dentro `Visualizza` sono i primi pulsanti a sinistra, uno con un
+albero di elementi e uno con un elenco di proprieta'.
+
+Quasi tutte le guide e i video su Roblox sono pero' in inglese. Se in futuro ti
+stufa tradurre i nomi dei pulsanti, la lingua si cambia da **File > Studio
+Settings** (`Alt+S`).
+
+---
+
 ## Passo 1 — l'interruttore della luce
 
 Questo il codice non puo' farlo: Roblox non lo permette agli script. Ed e' la
