@@ -51,102 +51,137 @@ Settings** (`Alt+S`).
 
 ---
 
-## Passo 1 — niente
+## Regola numero uno
 
-C'era un passaggio manuale qui: accendere l'illuminazione moderna dalle
-proprieta' di `Lighting`. **Non serve piu'**, lo fa il codice.
+**In alto deve esserci il triangolo Play.** Se c'e' un quadrato Stop, premilo.
 
-Il motivo per cui lo trovi scritto in giro: fino a gennaio 2025 la proprieta' si
-chiamava `Technology` e andava messa su `Future` a mano, perche' Roblox non
-lasciava cambiarla da codice. Poi e' stata sostituita da **`LightingStyle`**, e
-i valori sono cambiati (`Future` e' diventato **`Realistic`**, `ShadowMap` e'
-diventato `Soft`). La nuova si puo' impostare da codice, quindi `Main` la mette
-da solo — e se sei su una versione vecchia di Studio prova anche la strada
-vecchia e, se non ce la fa, te lo scrive nell'Output.
-
-Quindi: **se nelle proprieta' di `Lighting` non trovi `Technology`, e' normale.**
-Vai avanti.
-
-## Passo 2 — GameConfig
-
-1. Nell'**Explorer**, cerca la riga **`ReplicatedStorage`**
-2. **Passaci sopra col mouse**: a destra della riga compare un **`+`** in un cerchio
-3. Clicca il `+`, si apre una casella di ricerca
-4. Scrivi **`ModuleScript`** e clicca il risultato
-5. Appare un oggetto nuovo dentro `ReplicatedStorage`, col nome gia' evidenziato:
-   scrivi **`GameConfig`** e premi Invio
-   *(se il nome non e' evidenziato: selezionalo e premi **F2**)*
-6. **Doppio clic sull'oggetto**: si apre l'editor di testo al centro
-7. Studio ci ha gia' messo una riga di esempio. **Cancellala**: clicca
-   nell'editor, poi `Ctrl+A` (`Cmd+A` su Mac) e `Canc`
-8. Apri `src/ReplicatedStorage/GameConfig.luau` su GitHub. In alto a destra del
-   riquadro del codice c'e' l'icona **"Copy raw file"** (due quadratini
-   sovrapposti): cliccala
-9. Torna in Studio, clicca dentro l'editor vuoto, `Ctrl+V`
+Tutto cio' che crei *mentre il gioco e' in esecuzione* viene **cancellato**
+quando esci dalla prova. Si scrive col gioco fermo, si prova col gioco in moto,
+mai il contrario. E' la trappola in cui cascano tutti la prima volta.
 
 ---
 
-## Passo 3 — MapGenerator
+## Le due manovre che ripeterai
 
-Identico al passo 2, ma:
+Imparale una volta, poi le usi quattro volte.
+
+### A — come si da' il nome
+
+Il doppio clic su uno script apre l'editor invece di rinominare, quindi il nome
+si mette dal pannello delle proprieta':
+
+1. Clicca **una volta** sull'oggetto nell'**Explorer** (se si apre l'editor, ignoralo)
+2. Guarda il pannello **Proprieta'**
+3. Prima riga dell'elenco: a sinistra c'e' scritto **`Name`**
+4. Clicca **sulla casella a destra** di `Name`
+5. `Ctrl+A`, scrivi il nome, **Invio**
+
+Nell'Explorer il nome cambia subito, e cambia anche la linguetta dell'editor:
+quella e' la conferma.
+
+### B — come si mette il codice
+
+1. **Doppio clic** sull'oggetto: si apre l'editor al centro
+2. Clicca **dentro** l'editor, poi `Ctrl+A` e `Canc` (deve restare vuoto)
+3. Apri il file su GitHub, tasto **Copy raw file** in alto a destra del riquadro
+4. Torna in Studio, clicca dentro l'editor, `Ctrl+V`
+
+---
+
+## I quattro oggetti
+
+Per crearli: **clic destro** sul contenitore nell'Explorer, poi `Insert Object`,
+poi il tipo. (C'e' anche un `+` che compare passando il mouse sulla riga: fa la
+stessa cosa.)
+
+### 1. GameConfig
+
+- contenitore: **`ReplicatedStorage`**
+- tipo: **`ModuleScript`**
+- nome (manovra A): **`GameConfig`**
+- codice (manovra B): `src/ReplicatedStorage/GameConfig.luau`
+
+### 2. MapGenerator
 
 - contenitore: **`ServerScriptService`**
 - tipo: **`ModuleScript`**
 - nome: **`MapGenerator`**
 - codice: `src/ServerScriptService/MapGenerator.luau`
 
----
-
-## Passo 4 — Main
-
-Stesso contenitore del passo 3, **ma attenzione al tipo**:
+### 3. Main
 
 - contenitore: **`ServerScriptService`**
-- tipo: **`Script`** — non `ModuleScript`, non `LocalScript`
+- tipo: **`Script`** — non `ModuleScript`
 - nome: **`Main`**
 - codice: `src/ServerScriptService/Main.server.luau`
 
-> Il `.server` nel nome del file e' una convenzione per ricordare il tipo.
-> **In Studio l'oggetto si chiama solo `Main`.**
+### 4. Torch
+
+- contenitore: **`StarterPlayer`** > **`StarterPlayerScripts`**
+  (apri prima la freccia di `StarterPlayer`)
+- tipo: **`LocalScript`**
+- nome: **`Torch`**
+- codice: `src/StarterPlayerScripts/Torch.client.luau`
 
 ---
 
-## Passo 5 — Torch
+## I nomi: quali contano e quali no
 
-Qui c'e' un passaggio in piu', perche' il contenitore e' annidato.
+Non e' un capriccio, e la differenza e' importante:
 
-1. Nell'**Explorer** trova **`StarterPlayer`**
-2. Alla sua **sinistra** c'e' una piccola freccia. Cliccala per aprirlo
-3. Dentro compaiono `StarterCharacterScripts` e **`StarterPlayerScripts`**
-4. Passa il mouse su **`StarterPlayerScripts`**, poi `+`
-5. Tipo: **`LocalScript`** — un `Script` normale, qui, non parte
-6. Nome: **`Torch`**
-7. Codice: `src/StarterPlayerScripts/Torch.client.luau`
+| Oggetto | Il nome conta? | Perche' |
+|---|---|---|
+| `GameConfig` | **si', obbligatorio** | `Main` lo cerca per nome |
+| `MapGenerator` | **si', obbligatorio** | idem |
+| `Main` | no | nessuno lo cerca |
+| `Torch` | no | nessuno lo cerca |
+
+Se `GameConfig` o `MapGenerator` hanno il nome sbagliato, `Main` si blocca ad
+aspettarli e non succede niente — **senza errori in rosso**. Nell'Output compare
+una riga arancione `Infinite yield possible on ...` che dice quale oggetto sta
+aspettando.
+
+Il nome dev'essere identico, maiuscole comprese: `gameconfig` non e' `GameConfig`.
+Niente estensione `.luau`, niente spazi in fondo.
 
 ---
 
-## Passo 6 — controlla, salva, prova
+## Verifica
 
-Nell'Explorer devi vedere esattamente questo:
+Apri tutte le frecce. Deve essere **esattamente** cosi', ne' piu' ne' meno —
+quattro oggetti in tutto:
 
 ```
 ReplicatedStorage
- └── GameConfig          (ModuleScript)
+ └── GameConfig
+
 ServerScriptService
- ├── MapGenerator        (ModuleScript)
- └── Main                (Script)
+ ├── MapGenerator
+ └── Main
+
 StarterPlayer
  └── StarterPlayerScripts
-      └── Torch          (LocalScript)
+      └── Torch
 ```
 
-I nomi devono essere identici, **maiuscole comprese**: gli script si cercano per
-nome, e `gameconfig` non e' `GameConfig`.
+Se ne trovi di piu' (capita rifacendo i passaggi), **cancella i doppioni**:
+clic sull'oggetto, tasto `Canc`. Un doppione si riconosce anche dall'Output,
+dove ogni messaggio compare due volte.
 
-Poi `Ctrl+S` per salvare, e premi **Play** (il triangolo in alto). Per uscire,
-il quadrato **Stop**.
+---
 
-Dovresti trovarti fuori dall'ingresso, al buio. Premi **F** per la torcia ed entra.
+## Salva e prova
+
+`Ctrl+S`, poi il tasto **Play**. Per uscire, il quadrato **Stop**.
+
+Apri `Visualizza` > `Output` e cerca questa riga:
+
+```
+[Count Your Friends] Scuola costruita: ... oggetti.
+```
+
+Se c'e', la scuola e' stata costruita davvero. Compari **fuori** dall'ingresso,
+sul piazzale, sotto una lampada che sfarfalla. Premi **F** per la torcia ed entra.
 
 ---
 
