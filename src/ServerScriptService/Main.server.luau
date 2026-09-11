@@ -24,9 +24,29 @@ local MapGenerator = require(ServerScriptService:WaitForChild("MapGenerator"))
 -- ============================================================
 --  1. SPEGNERE IL MONDO
 -- ============================================================
--- Nota: "Technology" (il motore di illuminazione) NON si puo' cambiare da
--- codice — va messo a mano su "Future" nelle proprieta' di Lighting. E' il
--- singolo interruttore che cambia di piu' l'aspetto del gioco.
+-- L'illuminazione moderna e' l'interruttore che cambia di piu' l'aspetto del
+-- gioco: senza, le torce non proiettano ombre vere. Si accende in due modi
+-- diversi a seconda di quanto e' aggiornato Roblox, quindi li proviamo
+-- entrambi:
+--   - versioni recenti: LightingStyle = Realistic  (si imposta da codice)
+--   - versioni vecchie: Technology = Future        (NON si imposta da codice,
+--     va messo a mano nelle proprieta' di Lighting)
+-- "pcall" vuol dire "prova, e se fallisce non fermare tutto": serve perche' su
+-- una versione la proprieta' che cerchiamo semplicemente non esiste.
+
+local illuminazioneOk = pcall(function()
+	Lighting.LightingStyle = Enum.LightingStyle.Realistic
+end)
+if not illuminazioneOk then
+	illuminazioneOk = pcall(function()
+		Lighting.Technology = Enum.Technology.Future
+	end)
+end
+if not illuminazioneOk then
+	warn("[Count Your Friends] Illuminazione moderna non attivata. " ..
+		"Seleziona Lighting nell'Explorer e metti LightingStyle su Realistic " ..
+		"(oppure Technology su Future, se e' quella che vedi).")
+end
 
 Lighting.ClockTime      = 0
 Lighting.Brightness     = 0

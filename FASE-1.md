@@ -51,19 +51,21 @@ Settings** (`Alt+S`).
 
 ---
 
-## Passo 1 — l'interruttore della luce
+## Passo 1 — niente
 
-Questo il codice non puo' farlo: Roblox non lo permette agli script. Ed e' la
-cosa che cambia di piu' l'aspetto del gioco.
+C'era un passaggio manuale qui: accendere l'illuminazione moderna dalle
+proprieta' di `Lighting`. **Non serve piu'**, lo fa il codice.
 
-1. Nell'**Explorer**, clic singolo su **`Lighting`**
-2. Nel **Properties** scorri fino alla riga **`Technology`**
-3. Clicca il valore accanto, si apre un menu': scegli **`Future`**
+Il motivo per cui lo trovi scritto in giro: fino a gennaio 2025 la proprieta' si
+chiamava `Technology` e andava messa su `Future` a mano, perche' Roblox non
+lasciava cambiarla da codice. Poi e' stata sostituita da **`LightingStyle`**, e
+i valori sono cambiati (`Future` e' diventato **`Realistic`**, `ShadowMap` e'
+diventato `Soft`). La nuova si puo' impostare da codice, quindi `Main` la mette
+da solo — e se sei su una versione vecchia di Studio prova anche la strada
+vecchia e, se non ce la fa, te lo scrive nell'Output.
 
-E' il motore di illuminazione moderno: senza, le torce non proiettano ombre vere
-e l'atmosfera non arriva.
-
----
+Quindi: **se nelle proprieta' di `Lighting` non trovi `Technology`, e' normale.**
+Vai avanti.
 
 ## Passo 2 — GameConfig
 
@@ -181,7 +183,7 @@ Apri **`View` > `Output`**: e' la finestra dove il gioco scrive gli errori, in r
 | `... is not a valid member of ...` | un nome sbagliato, o un oggetto nel contenitore sbagliato |
 | `attempt to call a nil value` / `attempt to index nil` | un `ModuleScript` creato come `Script`, o viceversa |
 | niente in rosso, ma resta il pavimento grigio di prova | `Main` non sta girando: dev'essere uno `Script` dentro `ServerScriptService` |
-| tutto nero, non si vede niente nemmeno con la torcia | manca il passo 1 (`Technology` = `Future`). Se e' gia' giusto, alza `TorchBrightness` |
+| tutto nero, non si vede niente nemmeno con la torcia | alza `TorchBrightness` in `GameConfig`. Se nell'Output c'e' un avviso sull'illuminazione, segui quello che dice |
 | `F` non accende la torcia | `Torch` dev'essere un `LocalScript` dentro `StarterPlayerScripts` |
 | si passa attraverso i muri, o si cade nel vuoto | e' un difetto del generatore: segnalalo con quello che leggi nell'Output |
 
